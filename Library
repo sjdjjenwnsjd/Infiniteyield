@@ -1,153 +1,146 @@
--- yes, chatgpt did make this
-local MiniYieldUI = {}
-
+local IY = {}
 -- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
+local Players, UIS, RS = game:GetService("Players"), game:GetService("UserInputService"), game:GetService("RunService")
+local CoreGui = gethui and gethui() or game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
 
--- Utility: cloneref (safe referencing)
-local function cloneref(obj)
-    if typeof(obj) == "Instance" then
-        local clone = obj:Clone()
-        clone.Parent = nil
-        return clone
-    else
-        return obj
-    end
-end
+-- Create ScreenGui
+local SG = Instance.new("ScreenGui")
+SG.Name = "CustomIY"
+SG.ResetOnSpawn = false
+SG.Parent = CoreGui
 
--- Get safe GUI parent (gethui or fallback)
-local function getSafeParent()
-    if gethui then
-        return gethui()
-    elseif syn and syn.protect_gui then
-        local g = Instance.new("ScreenGui")
-        syn.protect_gui(g)
-        g.Name = "MiniYieldUI"
-        g.Parent = CoreGui
-        return g
-    else
-        return CoreGui
-    end
-end
-
--- Create main GUI container (hidden at start)
-local GUI = Instance.new("ScreenGui")
-GUI.Name = "MiniYieldUI"
-GUI.Parent = getSafeParent()
-GUI.ResetOnSpawn = false
-
--- Main Holder Frame (bottom-right corner)
-local Holder = Instance.new("Frame")
-Holder.Size = UDim2.new(0, 280, 0, 300)
-Holder.Position = UDim2.new(1, -300, 1, -350)
-Holder.BackgroundColor3 = Color3.fromRGB(30,30,30)
+-- Holder
+local Holder = Instance.new("Frame", SG)
+Holder.Size = UDim2.new(0, 250, 0, 220)
+Holder.Position = UDim2.new(1, -260, 1, -230)
+Holder.BackgroundColor3 = Color3.fromRGB(36,36,37)
 Holder.BorderSizePixel = 0
 Holder.Active = true
 Holder.Draggable = true
-Holder.Parent = GUI
 
--- Title Bar
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.TextColor3 = Color3.new(1,1,1)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
-Title.Text = "Mini Yield UI"
-Title.BorderSizePixel = 0
-Title.Parent = Holder
+-- Title + Settings Button
+IY.Title = Instance.new("TextLabel", Holder)
+IY.Title.Size = UDim2.new(1, 0, 0, 20)
+IY.Title.BackgroundColor3 = Color3.fromRGB(46,46,47)
+IY.Title.Font = Enum.Font.SourceSansBold
+IY.Title.TextSize = 18
+IY.Title.TextColor3 = Color3.new(1,1,1)
+IY.Title.Text = "Infinite Yield"
 
--- ScrollFrame for toggles/buttons/labels
-local Scroll = Instance.new("ScrollingFrame")
-Scroll.Size = UDim2.new(1, -10, 1, -40)
-Scroll.Position = UDim2.new(0, 5, 0, 35)
-Scroll.BackgroundTransparency = 1
-Scroll.BorderSizePixel = 0
-Scroll.CanvasSize = UDim2.new(0,0,0,0)
-Scroll.ScrollBarThickness = 6
-Scroll.Parent = Holder
+local SettingsBtn = Instance.new("ImageButton", Holder)
+SettingsBtn.Size = UDim2.new(0, 20, 0, 20)
+SettingsBtn.Position = UDim2.new(1, -22, 0, 0)
+SettingsBtn.BackgroundTransparency = 1
+-- Placeholder; user should set valid path via SetCustomAssets
+SettingsBtn.Image = ""
 
-local UIList = Instance.new("UIListLayout")
-UIList.Padding = UDim.new(0, 6)
-UIList.SortOrder = Enum.SortOrder.LayoutOrder
-UIList.Parent = Scroll
+-- Settings Panel
+local Settings = Instance.new("Frame", Holder)
+Settings.Size = UDim2.new(0, 150, 0, 90)
+Settings.Position = UDim2.new(1, 5, 0, 20)
+Settings.BackgroundColor3 = Color3.fromRGB(46,46,47)
+Settings.Visible = false
 
--- Auto resize Scroll canvas
-UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Scroll.CanvasSize = UDim2.new(0,0,0, UIList.AbsoluteContentSize.Y + 8)
+local KeepBtn = Instance.new("TextButton", Settings)
+KeepBtn.Size = UDim2.new(1, -10, 0, 30)
+KeepBtn.Position = UDim2.new(0, 5, 0, 5)
+KeepBtn.Text = "Keep Open: OFF"
+KeepBtn.Font = Enum.Font.SourceSans
+KeepBtn.TextColor3 = Color3.new(1,1,1)
+KeepBtn.BackgroundColor3 = Color3.fromRGB(50,50,51)
+local keepOpen = false
+
+local ThemeBtn = Instance.new("TextButton", Settings)
+ThemeBtn.Size = UDim2.new(1, -10, 0, 30)
+ThemeBtn.Position = UDim2.new(0, 5, 0, 45)
+ThemeBtn.Text = "Edit Theme"
+ThemeBtn.Font = Enum.Font.SourceSans
+ThemeBtn.TextColor3 = Color3.new(1,1,1)
+ThemeBtn.BackgroundColor3 = Color3.fromRGB(50,50,51)
+
+SettingsBtn.MouseButton1Click:Connect(function()
+    Settings.Visible = not Settings.Visible
 end)
 
--- Helper to create toggle button
-local function createToggle(name, callback)
-    local toggled = false
+KeepBtn.MouseButton1Click:Connect(function()
+    keepOpen = not keepOpen
+    KeepBtn.Text = "Keep Open: " .. (keepOpen and "ON" or "OFF")
+end)
 
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 17
-    btn.AutoButtonColor = false
-    btn.Text = "[OFF] "..name
-    btn.Parent = Scroll
+-- Command Bar
+local CmdBar = Instance.new("TextBox", Holder)
+CmdBar.Size = UDim2.new(1, -10, 0, 25)
+CmdBar.Position = UDim2.new(0, 5, 0, 22)
+CmdBar.PlaceholderText = "Command Bar"
+CmdBar.Font = Enum.Font.SourceSans
+CmdBar.TextSize = 16
+CmdBar.TextColor3 = Color3.new(1,1,1)
+CmdBar.BackgroundColor3 = Color3.fromRGB(46,46,47)
 
-    btn.MouseButton1Click:Connect(function()
-        toggled = not toggled
-        btn.Text = (toggled and "[ON] " or "[OFF] ") .. name
-        if callback then
-            pcall(callback, toggled)
+-- Command List
+local CmdList = Instance.new("ScrollingFrame", Holder)
+CmdList.Size = UDim2.new(1, -10, 1, -55)
+CmdList.Position = UDim2.new(0, 5, 0, 50)
+CmdList.BackgroundTransparency = 1
+CmdList.ScrollBarThickness = 6
+
+local Layout = Instance.new("UIListLayout", CmdList)
+
+-- Auto-collapse logic
+local lastActive = tick()
+local collapsed = false
+
+local function collapse()
+    Holder:TweenPosition(UDim2.new(1, -30, 1, -30), "Out", "Quad", 0.3, true)
+    collapsed = true
+end
+
+local function expand()
+    Holder:TweenPosition(UDim2.new(1, -260, 1, -230), "Out", "Quad", 0.3, true)
+    collapsed = false
+end
+
+Holder.MouseEnter:Connect(function() lastActive = tick(); if collapsed then expand() end end)
+CmdBar.Focused:Connect(function() lastActive = tick(); if collapsed then expand() end end)
+
+RS.Heartbeat:Connect(function()
+    if not keepOpen and tick() - lastActive > 10 and not collapsed then collapse() end
+end)
+
+-- Developer API
+
+function IY:CreateWindow(title)
+    self.Title.Text = title or self.Title.Text
+end
+
+function IY:UpdateCommands(cmds)
+    for _, c in ipairs(CmdList:GetChildren()) do
+        if c:IsA("TextLabel") then c:Destroy() end
+    end
+    for _, cmd in ipairs(cmds) do
+        local lbl = Instance.new("TextLabel", CmdList)
+        lbl.Size = UDim2.new(1, 0, 0, 25)
+        lbl.BackgroundTransparency = 1
+        lbl.TextColor3 = Color3.new(1,1,1)
+        lbl.Font = Enum.Font.SourceSans
+        lbl.TextSize = 16
+        lbl.Text = cmd
+    end
+end
+
+function IY:SetCommandHandler(func)
+    CmdBar.FocusLost:Connect(function(enter)
+        if enter then
+            for command in string.gmatch(CmdBar.Text, "([^\\]+)") do
+                local parts = {}
+                for p in string.gmatch(command, "%S+") do table.insert(parts, p) end
+                func(parts[1], { unpack(parts, 2) })
+            end
+            CmdBar.Text = ""
+            lastActive = tick()
         end
     end)
 end
 
--- Helper to create simple button
-local function createButton(text, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 28)
-    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 16
-    btn.Text = text
-    btn.Parent = Scroll
-
-    btn.MouseButton1Click:Connect(function()
-        if callback then
-            pcall(callback)
-        end
-    end)
-end
-
--- Helper to create label
-local function createLabel(text)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 22)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(180,180,180)
-    label.Font = Enum.Font.SourceSans
-    label.TextSize = 16
-    label.Text = text
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = Scroll
-end
-
--- Public API
-function MiniYieldUI:NewToggle(name, callback)
-    createToggle(name, callback)
-end
-
-function MiniYieldUI:NewButton(text, callback)
-    createButton(text, callback)
-end
-
-function MiniYieldUI:NewLabel(text)
-    createLabel(text)
-end
-
-function MiniYieldUI:SetTitle(text)
-    Title.Text = text or Title.Text
-end
-
-return MiniYieldUI
+return IY

@@ -1,207 +1,241 @@
--- InfiniteYieldStyleLibrary.lua
 local Library = {}
 Library.__index = Library
 
--- Services
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
--- Helper functions
 local function randomString(length)
 	length = length or 8
-	local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	local charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	local str = ""
 	for i = 1, length do
-		str = str .. chars:sub(math.random(1,#chars), math.random(1,#chars))
+		str = str .. charset:sub(math.random(1, #charset), math.random(1, #charset))
 	end
 	return str
 end
 
-local function create(inst, props)
-	local obj = Instance.new(inst)
-	for k,v in pairs(props) do
-		if k == "Parent" then
-			obj.Parent = v
-		else
-			obj[k] = v
-		end
-	end
-	return obj
+local function getcustomasset(path)
+	-- Replace this with your actual method for loading custom assets or substitute with asset ids
+	-- For testing, you could return empty string or dummy asset id
+	return path
 end
 
-function Library.new(title)
+function Library.new(version)
 	local self = setmetatable({}, Library)
-	self.TitleText = title or "Infinite Yield FE"
+	self.Version = version or "4.0"
 	self.Commands = {}
 	self.KeepOpen = false
 	self.LastInput = tick()
+	self.Minimized = false
+
 	self:BuildUI()
 	self:SetupEvents()
 	self:StartAutoMinimize()
+
 	return self
 end
 
 function Library:BuildUI()
-	local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-	self.ScreenGui = create("ScreenGui", {
-		Name = "InfiniteYieldStyleUI_"..randomString(5),
-		ResetOnSpawn = false,
-		Parent = PlayerGui
-	})
+	local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-	-- Main Holder Frame
-	self.Holder = create("Frame", {
-		Name = "Holder",
-		Parent = self.ScreenGui,
-		Size = UDim2.new(0, 280, 0, 280),
-		Position = UDim2.new(0, 50, 0, 50),
-		BackgroundColor3 = Color3.fromRGB(36, 36, 37),
-		BorderSizePixel = 0,
-		Active = true,
-		ZIndex = 10,
-	})
+	self.Holder = Instance.new("Frame")
+	self.Holder.Name = "Holder"
+	self.Holder.Parent = PlayerGui
+	self.Holder.Active = true
+	self.Holder.BackgroundColor3 = Color3.fromRGB(36,36,37)
+	self.Holder.BorderSizePixel = 0
+	self.Holder.Position = UDim2.new(0,50,0,50)
+	self.Holder.Size = UDim2.new(0, 250, 0, 400)
+	self.Holder.ZIndex = 10
 
-	-- Title Bar
-	self.TitleBar = create("Frame", {
-		Name = "TitleBar",
-		Parent = self.Holder,
-		Size = UDim2.new(1, 0, 0, 26),
-		BackgroundColor3 = Color3.fromRGB(46, 46, 47),
-		BorderSizePixel = 0,
-		Active = true,
-	})
-	self.TitleLabel = create("TextLabel", {
-		Name = "TitleLabel",
-		Parent = self.TitleBar,
-		Text = self.TitleText,
-		Font = Enum.Font.SourceSansBold,
-		TextSize = 18,
-		TextColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -30, 1, 0),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Position = UDim2.new(0, 10, 0, 0),
-		ZIndex = 11,
-	})
+	-- Title
+	local Title = Instance.new("TextLabel")
+	Title.Name = "Title"
+	Title.Parent = self.Holder
+	Title.Active = true
+	Title.BackgroundColor3 = Color3.fromRGB(36,36,37)
+	Title.BorderSizePixel = 0
+	Title.Size = UDim2.new(0, 250, 0, 20)
+	Title.Font = Enum.Font.SourceSans
+	Title.TextSize = 18
+	Title.TextColor3 = Color3.new(1,1,1)
+	Title.ZIndex = 10
 
-	-- Settings Button (gear icon)
-	self.SettingsButton = create("ImageButton", {
-		Name = "SettingsButton",
-		Parent = self.TitleBar,
-		Size = UDim2.new(0, 24, 0, 24),
-		Position = UDim2.new(1, -30, 0, 1),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://3926307971", -- gear icon from Roblox
-		ImageColor3 = Color3.fromRGB(200, 200, 200),
-		ZIndex = 11,
-	})
+	do
+		local emoji = ({
+			["01 01"] = "🎆",
+			[(function(Year)
+				local A = math.floor(Year/100)
+				local B = math.floor((13+8*A)/25)
+				local C = (15-B+A-math.floor(A/4))%30
+				local D = (4+A-math.floor(A/4))%7
+				local E = (19*(Year%19)+C)%30
+				local F = (2*(Year%4)+4*(Year%7)+6*E+D)%7
+				local G = (22+E+F)
+				if E == 29 and F == 6 then
+					return "04 19"
+				elseif E == 28 and F == 6 then
+					return "04 18"
+				elseif 31 < G then
+					return ("04 %02d"):format(G-31)
+				end
+				return ("03 %02d"):format(G)
+			end)(tonumber(os.date("%Y")))] = "🥚",
+			["10 31"] = "🎃",
+			["12 25"] = "🎄"
+		})[os.date("%m %d")]
+		if emoji then
+			Title.Text = ("%s Infinite Yield FE v%s %s"):format(emoji, self.Version, emoji)
+		else
+			Title.Text = "Infinite Yield FE v" .. self.Version
+		end
+	end
 
-	-- Command Bar (TextBox)
-	self.CommandBar = create("TextBox", {
-		Name = "CommandBar",
-		Parent = self.Holder,
-		Size = UDim2.new(1, -20, 0, 30),
-		Position = UDim2.new(0, 10, 0, 35),
-		BackgroundColor3 = Color3.fromRGB(46, 46, 47),
-		BorderSizePixel = 0,
-		Font = Enum.Font.SourceSans,
-		TextSize = 18,
-		TextColor3 = Color3.new(1, 1, 1),
-		PlaceholderText = "Command Bar",
-		ClearTextOnFocus = false,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 10,
-	})
+	-- Dark background for command list and settings container
+	local Dark = Instance.new("Frame")
+	Dark.Name = "Dark"
+	Dark.Parent = self.Holder
+	Dark.Active = true
+	Dark.BackgroundColor3 = Color3.fromRGB(36, 36, 37)
+	Dark.BorderSizePixel = 0
+	Dark.Position = UDim2.new(0, 0, 0, 45)
+	Dark.Size = UDim2.new(0, 250, 0, 175)
+	Dark.ZIndex = 10
 
-	-- Command List Frame (ScrollingFrame)
-	self.CommandListFrame = create("ScrollingFrame", {
-		Name = "CommandListFrame",
-		Parent = self.Holder,
-		Size = UDim2.new(1, -20, 1, -80),
-		Position = UDim2.new(0, 10, 0, 70),
-		BackgroundColor3 = Color3.fromRGB(46, 46, 47),
-		BorderSizePixel = 0,
-		ScrollBarThickness = 8,
-		CanvasSize = UDim2.new(0, 0, 0, 0),
-		VerticalScrollBarInset = Enum.ScrollBarInset.Always,
-		ZIndex = 10,
-	})
+	-- Command bar (text input)
+	local Cmdbar = Instance.new("TextBox")
+	Cmdbar.Name = "Cmdbar"
+	Cmdbar.Parent = self.Holder
+	Cmdbar.BackgroundTransparency = 1
+	Cmdbar.BorderSizePixel = 0
+	Cmdbar.Position = UDim2.new(0, 5, 0, 20)
+	Cmdbar.Size = UDim2.new(0, 240, 0, 25)
+	Cmdbar.Font = Enum.Font.SourceSans
+	Cmdbar.TextSize = 18
+	Cmdbar.TextXAlignment = Enum.TextXAlignment.Left
+	Cmdbar.TextColor3 = Color3.new(1, 1, 1)
+	Cmdbar.PlaceholderText = "Command Bar"
+	Cmdbar.ZIndex = 10
+	self.Cmdbar = Cmdbar
 
-	self.CommandListLayout = create("UIListLayout", {
-		Name = "ListLayout",
-		Parent = self.CommandListFrame,
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 4),
-	})
+	-- Command list scrolling frame
+	local CMDsF = Instance.new("ScrollingFrame")
+	CMDsF.Name = "CMDs"
+	CMDsF.Parent = self.Holder
+	CMDsF.BackgroundTransparency = 1
+	CMDsF.BorderSizePixel = 0
+	CMDsF.Position = UDim2.new(0, 5, 0, 45)
+	CMDsF.Size = UDim2.new(0, 245, 0, 175)
+	CMDsF.ScrollBarImageColor3 = Color3.fromRGB(78,78,79)
+	CMDsF.BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	CMDsF.MidImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	CMDsF.TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	CMDsF.ScrollBarThickness = 8
+	CMDsF.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+	CMDsF.ZIndex = 10
 
-	-- Settings Panel (initially hidden)
-	self.SettingsPanel = create("Frame", {
-		Name = "SettingsPanel",
-		Parent = self.Holder,
-		Size = UDim2.new(1, 0, 0, 90),
-		Position = UDim2.new(0, 0, 1, 0),
-		BackgroundColor3 = Color3.fromRGB(46, 46, 47),
-		BorderSizePixel = 0,
-		Visible = false,
-		ZIndex = 12,
-	})
+	self.CMDsF = CMDsF
 
-	-- Keep Open Toggle TextLabel
-	self.KeepOpenLabel = create("TextLabel", {
-		Name = "KeepOpenLabel",
-		Parent = self.SettingsPanel,
-		Text = "Keep Menu Open",
-		Font = Enum.Font.SourceSans,
-		TextSize = 16,
-		TextColor3 = Color3.new(1,1,1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 10, 0, 10),
-		Size = UDim2.new(0.7, 0, 0, 25),
-		TextXAlignment = Enum.TextXAlignment.Left,
-	})
+	local cmdListLayout = Instance.new("UIListLayout")
+	cmdListLayout.Parent = CMDsF
+	cmdListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	cmdListLayout.Padding = UDim.new(0, 4)
 
-	-- Keep Open Toggle Button
-	self.KeepOpenToggle = create("TextButton", {
-		Name = "KeepOpenToggle",
-		Parent = self.SettingsPanel,
-		Text = "Off",
-		Font = Enum.Font.SourceSansBold,
-		TextSize = 16,
-		TextColor3 = Color3.new(1,1,1),
-		BackgroundColor3 = Color3.fromRGB(78, 78, 79),
-		Position = UDim2.new(0.75, 0, 0, 10),
-		Size = UDim2.new(0, 50, 0, 25),
-		AutoButtonColor = false,
-	})
+	self.CmdListLayout = cmdListLayout
 
-	-- Edit Theme Button (will open ColorPicker)
-	self.EditThemeButton = create("TextButton", {
-		Name = "EditThemeButton",
-		Parent = self.SettingsPanel,
-		Text = "Edit Theme",
-		Font = Enum.Font.SourceSans,
-		TextSize = 16,
-		TextColor3 = Color3.new(1,1,1),
-		BackgroundColor3 = Color3.fromRGB(78, 78, 79),
-		Position = UDim2.new(0, 10, 0, 45),
-		Size = UDim2.new(0.9, 0, 0, 30),
-		AutoButtonColor = false,
-	})
+	-- Settings Button
+	local SettingsButton = Instance.new("ImageButton")
+	SettingsButton.Name = "SettingsButton"
+	SettingsButton.Parent = self.Holder
+	SettingsButton.BackgroundTransparency = 1
+	SettingsButton.Position = UDim2.new(0, 230, 0, 0)
+	SettingsButton.Size = UDim2.new(0, 20, 0, 20)
+	SettingsButton.Image = getcustomasset("infiniteyield/assets/settings.png")
+	SettingsButton.ZIndex = 10
+	self.SettingsButton = SettingsButton
 
-	-- (Optional) Color Picker placeholder (implement your own color picker here)
-	self.ColorPicker = nil
+	-- Settings Panel
+	local Settings = Instance.new("Frame")
+	Settings.Name = "Settings"
+	Settings.Parent = self.Holder
+	Settings.Active = true
+	Settings.BackgroundColor3 = Color3.fromRGB(36, 36, 37)
+	Settings.BorderSizePixel = 0
+	Settings.Position = UDim2.new(0, 0, 0, 220)
+	Settings.Size = UDim2.new(0, 250, 0, 175)
+	Settings.ZIndex = 10
+	Settings.Visible = false
+	self.Settings = Settings
 
-	-- Table to hold command UI items
-	self.CommandItems = {}
+	-- SettingsHolder ScrollingFrame
+	local SettingsHolder = Instance.new("ScrollingFrame")
+	SettingsHolder.Name = "Holder"
+	SettingsHolder.Parent = Settings
+	SettingsHolder.BackgroundTransparency = 1
+	SettingsHolder.BorderSizePixel = 0
+	SettingsHolder.Size = UDim2.new(1,0,1,0)
+	SettingsHolder.ScrollBarImageColor3 = Color3.fromRGB(78,78,79)
+	SettingsHolder.BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	SettingsHolder.CanvasSize = UDim2.new(0, 0, 0, 235)
+	SettingsHolder.MidImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	SettingsHolder.ScrollBarThickness = 8
+	SettingsHolder.TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	SettingsHolder.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+	SettingsHolder.ZIndex = 10
 
-	-- Flag for minimized state
-	self.Minimized = false
+	self.SettingsHolder = SettingsHolder
+
+	-- Keep Menu Open Label and Button
+	local StayOpen = Instance.new("TextLabel")
+	StayOpen.Name = "StayOpen"
+	StayOpen.Parent = SettingsHolder
+	StayOpen.BackgroundColor3 = Color3.fromRGB(46, 46, 47)
+	StayOpen.BorderSizePixel = 0
+	StayOpen.BackgroundTransparency = 1
+	StayOpen.Position = UDim2.new(0, 5, 0, 30)
+	StayOpen.Size = UDim2.new(1, -10, 0, 20)
+	StayOpen.Font = Enum.Font.SourceSans
+	StayOpen.TextSize = 14
+	StayOpen.Text = "Keep Menu Open"
+	StayOpen.TextColor3 = Color3.new(1, 1, 1)
+	StayOpen.TextXAlignment = Enum.TextXAlignment.Left
+	StayOpen.ZIndex = 10
+
+	self.StayOpenLabel = StayOpen
+
+	local Button = Instance.new("Frame")
+	Button.Name = "Button"
+	Button.Parent = StayOpen
+	Button.BackgroundColor3 = Color3.fromRGB(78, 78, 79)
+	Button.BorderSizePixel = 0
+	Button.Position = UDim2.new(1, -20, 0, 0)
+	Button.Size = UDim2.new(0, 20, 0, 20)
+	Button.ZIndex = 10
+	self.KeepOpenButton = Button
+
+	local On = Instance.new("Frame")
+	On.Name = "On"
+	On.Parent = Button
+	On.BackgroundColor3 = Color3.fromRGB(150, 150, 151)
+	On.BackgroundTransparency = 1
+	On.BorderSizePixel = 0
+	On.Position = UDim2.new(0, 2, 0, 2)
+	On.Size = UDim2.new(0, 16, 0, 16)
+	On.ZIndex = 10
+	self.KeepOpenToggle = On
+
+	-- Store command labels here for cleanup
+	self.CommandLabels = {}
 end
 
 function Library:SetupEvents()
-	-- Click and drag for title bar to move window
+	-- Dragging the Holder by Title
 	local dragging, dragInput, dragStart, startPos
-	self.TitleBar.InputBegan:Connect(function(input)
+	local Title = self.Holder:FindFirstChild("Title")
+
+	Title.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragging = true
 			dragStart = input.Position
@@ -214,11 +248,13 @@ function Library:SetupEvents()
 			end)
 		end
 	end)
-	self.TitleBar.InputChanged:Connect(function(input)
+
+	Title.InputChanged:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseMovement then
 			dragInput = input
 		end
 	end)
+
 	RunService.RenderStepped:Connect(function()
 		if dragging and dragInput then
 			local delta = dragInput.Position - dragStart
@@ -231,45 +267,34 @@ function Library:SetupEvents()
 		end
 	end)
 
-	-- Settings button toggle
+	-- Settings Button toggles Settings panel
 	self.SettingsButton.MouseButton1Click:Connect(function()
-		self.SettingsPanel.Visible = not self.SettingsPanel.Visible
+		self.Settings.Visible = not self.Settings.Visible
 		self.LastInput = tick()
 	end)
 
-	-- KeepOpen toggle logic
-	self.KeepOpenToggle.MouseButton1Click:Connect(function()
-		self.KeepOpen = not self.KeepOpen
-		self.KeepOpenToggle.Text = self.KeepOpen and "On" or "Off"
-		self.LastInput = tick()
+	-- Keep Open toggle
+	self.KeepOpenButton.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			self.KeepOpen = not self.KeepOpen
+			self.LastInput = tick()
+			self.KeepOpenToggle.BackgroundTransparency = self.KeepOpen and 0 or 1
+		end
 	end)
 
-	-- EditTheme button - placeholder (can add color picker logic here)
-	self.EditThemeButton.MouseButton1Click:Connect(function()
-		-- For now just notify or open a color picker panel
-		self.LastInput = tick()
-		-- TODO: Implement color picker UI and theming
-		print("Edit Theme clicked - implement your color picker here")
-	end)
-
-	-- CommandBar Enter key to run command
-	self.CommandBar.FocusLost:Connect(function(enterPressed)
+	-- Command Bar enter key triggers command
+	self.Cmdbar.FocusLost:Connect(function(enterPressed)
 		if enterPressed then
-			local text = self.CommandBar.Text:match("^%s*(.-)%s*$") -- trim
-			if text ~= "" then
-				self:RunCommand(text)
+			local cmdText = self.Cmdbar.Text:match("^%s*(.-)%s*$") -- trim
+			if cmdText ~= "" then
+				self:RunCommand(cmdText)
 			end
-			self.CommandBar.Text = ""
+			self.Cmdbar.Text = ""
 			self.LastInput = tick()
 		end
 	end)
 
-	-- Reset last input time on focus/typing
-	self.CommandBar.Focused:Connect(function()
-		self.LastInput = tick()
-	end)
-
-	-- Mouse or keyboard input resets inactivity timer
+	-- Reset inactivity timer on input
 	UserInputService.InputBegan:Connect(function()
 		self.LastInput = tick()
 	end)
@@ -279,25 +304,20 @@ function Library:StartAutoMinimize()
 	spawn(function()
 		while true do
 			task.wait(1)
-			local now = tick()
-			if not self.KeepOpen and now - self.LastInput > 10 then
-				-- minimize
+			if not self.KeepOpen and tick() - self.LastInput > 10 then
 				if not self.Minimized then
 					self.Minimized = true
-					self.Holder:TweenSize(UDim2.new(0, 280, 0, 30), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.3, true)
-					self.CommandBar.Visible = false
-					self.CommandListFrame.Visible = false
-					self.SettingsPanel.Visible = false
+					self.Holder.Size = UDim2.new(0, 250, 0, 50)
+					self.CMDsF.Visible = false
+					self.Cmdbar.Visible = false
+					self.Settings.Visible = false
 				end
 			else
-				-- restore
 				if self.Minimized then
 					self.Minimized = false
-					self.Holder:TweenSize(UDim2.new(0, 280, 0, 280), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.3, true)
-					self.CommandBar.Visible = true
-					self.CommandListFrame.Visible = true
-					-- settings panel only visible if toggled on
-					self.SettingsPanel.Visible = self.SettingsPanel.Visible and true or false
+					self.Holder.Size = UDim2.new(0, 250, 0, 400)
+					self.CMDsF.Visible = true
+					self.Cmdbar.Visible = true
 				end
 			end
 		end
@@ -305,45 +325,39 @@ function Library:StartAutoMinimize()
 end
 
 function Library:SetCommands(commands)
-	-- commands: table of { name = string, description = string (optional) }
+	-- commands: array of tables {Name=string, Args=string?, Callback=function}
 	self.Commands = commands or {}
-	self:RefreshCommandList()
-end
 
-function Library:RefreshCommandList()
-	-- Clear previous command items
-	for _, item in ipairs(self.CommandItems) do
-		if item and item.Destroy then
-			item:Destroy()
-		end
+	-- Clear old labels
+	for _, lbl in pairs(self.CommandLabels) do
+		lbl:Destroy()
 	end
-	self.CommandItems = {}
+	self.CommandLabels = {}
 
-	-- Add each command as a label inside CommandListFrame
+	-- Add command labels
 	for i, cmd in ipairs(self.Commands) do
-		local label = create("TextLabel", {
-			Name = "Command_"..cmd.Name,
-			Parent = self.CommandListFrame,
-			Size = UDim2.new(1, -10, 0, 24),
-			BackgroundTransparency = 1,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Font = Enum.Font.SourceSans,
-			TextSize = 18,
-			TextColor3 = Color3.new(1, 1, 1),
-			Text = cmd.Name .. (cmd.Args and (" " .. cmd.Args) or ""),
-			ZIndex = 10,
-		})
-		table.insert(self.CommandItems, label)
+		local label = Instance.new("TextLabel")
+		label.Name = "CmdLabel_" .. cmd.Name
+		label.Parent = self.CMDsF
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.new(1, -10, 0, 22)
+		label.Font = Enum.Font.SourceSans
+		label.TextSize = 18
+		label.TextColor3 = Color3.new(1,1,1)
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.ZIndex = 10
+		label.Text = cmd.Name .. (cmd.Args and (" " .. cmd.Args) or "")
+		table.insert(self.CommandLabels, label)
 	end
 
-	-- Update CanvasSize for scrolling
+	-- Update canvas size for scrolling
 	task.spawn(function()
 		task.wait(0.1)
-		local totalSize = 0
-		for _, item in ipairs(self.CommandItems) do
-			totalSize = totalSize + item.AbsoluteSize.Y + 4
+		local totalHeight = 0
+		for _, lbl in pairs(self.CommandLabels) do
+			totalHeight = totalHeight + lbl.AbsoluteSize.Y + 4
 		end
-		self.CommandListFrame.CanvasSize = UDim2.new(0, 0, 0, totalSize)
+		self.CMDsF.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
 	end)
 end
 
@@ -362,22 +376,20 @@ function Library:RunCommand(text)
 			break
 		end
 	end
+
 	if cmdData and cmdData.Callback then
-		-- pass all args after command name
 		local passedArgs = {}
 		for i = 2, #args do
 			table.insert(passedArgs, args[i])
 		end
-		-- call the command callback safely
 		local success, err = pcall(function()
 			cmdData.Callback(unpack(passedArgs))
 		end)
 		if not success then
-			warn("[InfiniteYieldStyleLibrary] Command error: "..tostring(err))
+			warn("[InfiniteYield] Command error: ".. tostring(err))
 		end
 	else
-		-- Unknown command
-		warn("[InfiniteYieldStyleLibrary] Unknown command: "..cmdName)
+		warn("[InfiniteYield] Unknown command: ".. tostring(cmdName))
 	end
 end
 

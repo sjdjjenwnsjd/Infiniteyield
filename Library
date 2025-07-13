@@ -1,0 +1,153 @@
+-- yes, chatgpt did make this
+local MiniYieldUI = {}
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+-- Utility: cloneref (safe referencing)
+local function cloneref(obj)
+    if typeof(obj) == "Instance" then
+        local clone = obj:Clone()
+        clone.Parent = nil
+        return clone
+    else
+        return obj
+    end
+end
+
+-- Get safe GUI parent (gethui or fallback)
+local function getSafeParent()
+    if gethui then
+        return gethui()
+    elseif syn and syn.protect_gui then
+        local g = Instance.new("ScreenGui")
+        syn.protect_gui(g)
+        g.Name = "MiniYieldUI"
+        g.Parent = CoreGui
+        return g
+    else
+        return CoreGui
+    end
+end
+
+-- Create main GUI container (hidden at start)
+local GUI = Instance.new("ScreenGui")
+GUI.Name = "MiniYieldUI"
+GUI.Parent = getSafeParent()
+GUI.ResetOnSpawn = false
+
+-- Main Holder Frame (bottom-right corner)
+local Holder = Instance.new("Frame")
+Holder.Size = UDim2.new(0, 280, 0, 300)
+Holder.Position = UDim2.new(1, -300, 1, -350)
+Holder.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Holder.BorderSizePixel = 0
+Holder.Active = true
+Holder.Draggable = true
+Holder.Parent = GUI
+
+-- Title Bar
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 20
+Title.Text = "Mini Yield UI"
+Title.BorderSizePixel = 0
+Title.Parent = Holder
+
+-- ScrollFrame for toggles/buttons/labels
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1, -10, 1, -40)
+Scroll.Position = UDim2.new(0, 5, 0, 35)
+Scroll.BackgroundTransparency = 1
+Scroll.BorderSizePixel = 0
+Scroll.CanvasSize = UDim2.new(0,0,0,0)
+Scroll.ScrollBarThickness = 6
+Scroll.Parent = Holder
+
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 6)
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Parent = Scroll
+
+-- Auto resize Scroll canvas
+UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Scroll.CanvasSize = UDim2.new(0,0,0, UIList.AbsoluteContentSize.Y + 8)
+end)
+
+-- Helper to create toggle button
+local function createToggle(name, callback)
+    local toggled = false
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 17
+    btn.AutoButtonColor = false
+    btn.Text = "[OFF] "..name
+    btn.Parent = Scroll
+
+    btn.MouseButton1Click:Connect(function()
+        toggled = not toggled
+        btn.Text = (toggled and "[ON] " or "[OFF] ") .. name
+        if callback then
+            pcall(callback, toggled)
+        end
+    end)
+end
+
+-- Helper to create simple button
+local function createButton(text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 28)
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 16
+    btn.Text = text
+    btn.Parent = Scroll
+
+    btn.MouseButton1Click:Connect(function()
+        if callback then
+            pcall(callback)
+        end
+    end)
+end
+
+-- Helper to create label
+local function createLabel(text)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 22)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(180,180,180)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 16
+    label.Text = text
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = Scroll
+end
+
+-- Public API
+function MiniYieldUI:NewToggle(name, callback)
+    createToggle(name, callback)
+end
+
+function MiniYieldUI:NewButton(text, callback)
+    createButton(text, callback)
+end
+
+function MiniYieldUI:NewLabel(text)
+    createLabel(text)
+end
+
+function MiniYieldUI:SetTitle(text)
+    Title.Text = text or Title.Text
+end
+
+return MiniYieldUI

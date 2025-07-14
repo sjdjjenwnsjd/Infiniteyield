@@ -6,19 +6,7 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local function randomString(length)
-	length = length or 8
-	local charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	local str = ""
-	for i = 1, length do
-		str = str .. charset:sub(math.random(1, #charset), math.random(1, #charset))
-	end
-	return str
-end
-
 local function getcustomasset(path)
-	-- Replace this with your actual method for loading custom assets or substitute with asset ids
-	-- For testing, you could return empty string or dummy asset id
 	return path
 end
 
@@ -50,7 +38,6 @@ function Library:BuildUI()
 	self.Holder.Size = UDim2.new(0, 250, 0, 400)
 	self.Holder.ZIndex = 10
 
-	-- Title
 	local Title = Instance.new("TextLabel")
 	Title.Name = "Title"
 	Title.Parent = self.Holder
@@ -63,37 +50,8 @@ function Library:BuildUI()
 	Title.TextColor3 = Color3.new(1,1,1)
 	Title.ZIndex = 10
 
-	do
-		local emoji = ({
-			["01 01"] = "🎆",
-			[(function(Year)
-				local A = math.floor(Year/100)
-				local B = math.floor((13+8*A)/25)
-				local C = (15-B+A-math.floor(A/4))%30
-				local D = (4+A-math.floor(A/4))%7
-				local E = (19*(Year%19)+C)%30
-				local F = (2*(Year%4)+4*(Year%7)+6*E+D)%7
-				local G = (22+E+F)
-				if E == 29 and F == 6 then
-					return "04 19"
-				elseif E == 28 and F == 6 then
-					return "04 18"
-				elseif 31 < G then
-					return ("04 %02d"):format(G-31)
-				end
-				return ("03 %02d"):format(G)
-			end)(tonumber(os.date("%Y")))] = "🥚",
-			["10 31"] = "🎃",
-			["12 25"] = "🎄"
-		})[os.date("%m %d")]
-		if emoji then
-			Title.Text = ("%s Infinite Yield FE v%s %s"):format(emoji, self.Version, emoji)
-		else
-			Title.Text = "Infinite Yield FE v" .. self.Version
-		end
-	end
+	Title.Text = "Infinite Yield FE v"..self.Version
 
-	-- Dark background for command list and settings container
 	local Dark = Instance.new("Frame")
 	Dark.Name = "Dark"
 	Dark.Parent = self.Holder
@@ -104,7 +62,6 @@ function Library:BuildUI()
 	Dark.Size = UDim2.new(0, 250, 0, 175)
 	Dark.ZIndex = 10
 
-	-- Command bar (text input)
 	local Cmdbar = Instance.new("TextBox")
 	Cmdbar.Name = "Cmdbar"
 	Cmdbar.Parent = self.Holder
@@ -120,7 +77,6 @@ function Library:BuildUI()
 	Cmdbar.ZIndex = 10
 	self.Cmdbar = Cmdbar
 
-	-- Command list scrolling frame
 	local CMDsF = Instance.new("ScrollingFrame")
 	CMDsF.Name = "CMDs"
 	CMDsF.Parent = self.Holder
@@ -129,34 +85,29 @@ function Library:BuildUI()
 	CMDsF.Position = UDim2.new(0, 5, 0, 45)
 	CMDsF.Size = UDim2.new(0, 245, 0, 175)
 	CMDsF.ScrollBarImageColor3 = Color3.fromRGB(78,78,79)
-	CMDsF.BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
-	CMDsF.MidImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
-	CMDsF.TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
 	CMDsF.ScrollBarThickness = 8
 	CMDsF.VerticalScrollBarInset = Enum.ScrollBarInset.Always
 	CMDsF.ZIndex = 10
-
 	self.CMDsF = CMDsF
 
 	local cmdListLayout = Instance.new("UIListLayout")
 	cmdListLayout.Parent = CMDsF
 	cmdListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	cmdListLayout.Padding = UDim.new(0, 4)
-
 	self.CmdListLayout = cmdListLayout
 
-	-- Settings Button
+	self.CommandLabels = {}
+
 	local SettingsButton = Instance.new("ImageButton")
 	SettingsButton.Name = "SettingsButton"
 	SettingsButton.Parent = self.Holder
 	SettingsButton.BackgroundTransparency = 1
 	SettingsButton.Position = UDim2.new(0, 230, 0, 0)
 	SettingsButton.Size = UDim2.new(0, 20, 0, 20)
-	SettingsButton.Image = getcustomasset("infiniteyield/assets/settings.png")
+	SettingsButton.Image = getcustomasset("rbxassetid://3926305904") -- settings gear icon
 	SettingsButton.ZIndex = 10
 	self.SettingsButton = SettingsButton
 
-	-- Settings Panel
 	local Settings = Instance.new("Frame")
 	Settings.Name = "Settings"
 	Settings.Parent = self.Holder
@@ -169,7 +120,6 @@ function Library:BuildUI()
 	Settings.Visible = false
 	self.Settings = Settings
 
-	-- SettingsHolder ScrollingFrame
 	local SettingsHolder = Instance.new("ScrollingFrame")
 	SettingsHolder.Name = "Holder"
 	SettingsHolder.Parent = Settings
@@ -177,22 +127,15 @@ function Library:BuildUI()
 	SettingsHolder.BorderSizePixel = 0
 	SettingsHolder.Size = UDim2.new(1,0,1,0)
 	SettingsHolder.ScrollBarImageColor3 = Color3.fromRGB(78,78,79)
-	SettingsHolder.BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
 	SettingsHolder.CanvasSize = UDim2.new(0, 0, 0, 235)
-	SettingsHolder.MidImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
 	SettingsHolder.ScrollBarThickness = 8
-	SettingsHolder.TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
 	SettingsHolder.VerticalScrollBarInset = Enum.ScrollBarInset.Always
 	SettingsHolder.ZIndex = 10
-
 	self.SettingsHolder = SettingsHolder
 
-	-- Keep Menu Open Label and Button
 	local StayOpen = Instance.new("TextLabel")
 	StayOpen.Name = "StayOpen"
 	StayOpen.Parent = SettingsHolder
-	StayOpen.BackgroundColor3 = Color3.fromRGB(46, 46, 47)
-	StayOpen.BorderSizePixel = 0
 	StayOpen.BackgroundTransparency = 1
 	StayOpen.Position = UDim2.new(0, 5, 0, 30)
 	StayOpen.Size = UDim2.new(1, -10, 0, 20)
@@ -202,7 +145,6 @@ function Library:BuildUI()
 	StayOpen.TextColor3 = Color3.new(1, 1, 1)
 	StayOpen.TextXAlignment = Enum.TextXAlignment.Left
 	StayOpen.ZIndex = 10
-
 	self.StayOpenLabel = StayOpen
 
 	local Button = Instance.new("Frame")
@@ -225,13 +167,9 @@ function Library:BuildUI()
 	On.Size = UDim2.new(0, 16, 0, 16)
 	On.ZIndex = 10
 	self.KeepOpenToggle = On
-
-	-- Store command labels here for cleanup
-	self.CommandLabels = {}
 end
 
 function Library:SetupEvents()
-	-- Dragging the Holder by Title
 	local dragging, dragInput, dragStart, startPos
 	local Title = self.Holder:FindFirstChild("Title")
 
@@ -267,13 +205,11 @@ function Library:SetupEvents()
 		end
 	end)
 
-	-- Settings Button toggles Settings panel
 	self.SettingsButton.MouseButton1Click:Connect(function()
 		self.Settings.Visible = not self.Settings.Visible
 		self.LastInput = tick()
 	end)
 
-	-- Keep Open toggle
 	self.KeepOpenButton.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			self.KeepOpen = not self.KeepOpen
@@ -282,10 +218,9 @@ function Library:SetupEvents()
 		end
 	end)
 
-	-- Command Bar enter key triggers command
 	self.Cmdbar.FocusLost:Connect(function(enterPressed)
 		if enterPressed then
-			local cmdText = self.Cmdbar.Text:match("^%s*(.-)%s*$") -- trim
+			local cmdText = self.Cmdbar.Text:match("^%s*(.-)%s*$")
 			if cmdText ~= "" then
 				self:RunCommand(cmdText)
 			end
@@ -294,7 +229,6 @@ function Library:SetupEvents()
 		end
 	end)
 
-	-- Reset inactivity timer on input
 	UserInputService.InputBegan:Connect(function()
 		self.LastInput = tick()
 	end)
@@ -325,16 +259,13 @@ function Library:StartAutoMinimize()
 end
 
 function Library:SetCommands(commands)
-	-- commands: array of tables {Name=string, Args=string?, Callback=function}
 	self.Commands = commands or {}
 
-	-- Clear old labels
 	for _, lbl in pairs(self.CommandLabels) do
 		lbl:Destroy()
 	end
 	self.CommandLabels = {}
 
-	-- Add command labels
 	for i, cmd in ipairs(self.Commands) do
 		local label = Instance.new("TextLabel")
 		label.Name = "CmdLabel_" .. cmd.Name
@@ -350,7 +281,6 @@ function Library:SetCommands(commands)
 		table.insert(self.CommandLabels, label)
 	end
 
-	-- Update canvas size for scrolling
 	task.spawn(function()
 		task.wait(0.1)
 		local totalHeight = 0
@@ -393,4 +323,44 @@ function Library:RunCommand(text)
 	end
 end
 
-return Library
+-- === Usage example ===
+
+local UI = Library.new("5.0.0")
+
+UI:SetCommands({
+	{
+		Name = "print",
+		Args = "[text]",
+		Callback = function(...)
+			print(table.concat({...}, " "))
+		end
+	},
+	{
+		Name = "speed",
+		Args = "[num]",
+		Callback = function(speed)
+			local plr = game.Players.LocalPlayer
+			if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+				plr.Character.Humanoid.WalkSpeed = tonumber(speed) or 16
+			end
+		end
+	},
+	{
+		Name = "unspeed",
+		Callback = function()
+			local plr = game.Players.LocalPlayer
+			if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+				plr.Character.Humanoid.WalkSpeed = 16
+			end
+		end
+	},
+	{
+		Name = "reset",
+		Callback = function()
+			local plr = game.Players.LocalPlayer
+			if plr.Character then
+				plr.Character:BreakJoints()
+			end
+		end
+	}
+})

@@ -3,364 +3,236 @@ Library.__index = Library
 
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local function getcustomasset(path)
-	return path
+-- Utils
+local function create(inst, props)
+    local obj = Instance.new(inst)
+    for k,v in pairs(props or {}) do obj[k] = v end
+    return obj
 end
 
-function Library.new(version)
-	local self = setmetatable({}, Library)
-	self.Version = version or "4.0"
-	self.Commands = {}
-	self.KeepOpen = false
-	self.LastInput = tick()
-	self.Minimized = false
-
-	self:BuildUI()
-	self:SetupEvents()
-	self:StartAutoMinimize()
-
-	return self
+-- Main Library constructor
+function Library.new()
+    local self = setmetatable({}, Library)
+    self.Windows = {}
+    return self
 end
 
-function Library:BuildUI()
-	local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+function Library:CreateWindow(title)
+    local Window = {}
+    Window.__index = Window
+    local self = setmetatable({}, Window)
 
-	self.Holder = Instance.new("Frame")
-	self.Holder.Name = "Holder"
-	self.Holder.Parent = PlayerGui
-	self.Holder.Active = true
-	self.Holder.BackgroundColor3 = Color3.fromRGB(36,36,37)
-	self.Holder.BorderSizePixel = 0
-	self.Holder.Position = UDim2.new(0,50,0,50)
-	self.Holder.Size = UDim2.new(0, 250, 0, 400)
-	self.Holder.ZIndex = 10
+    -- Create main frame in CoreGui
+    self.Frame = create("Frame", {
+        Name = "InfiniteYieldUI",
+        Parent = CoreGui,
+        BackgroundColor3 = Color3.fromRGB(36, 36, 37),
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 250, 0, 400),
+        Position = UDim2.new(0, 50, 0, 50),
+        Active = true,
+        ZIndex = 10,
+    })
 
-	local Title = Instance.new("TextLabel")
-	Title.Name = "Title"
-	Title.Parent = self.Holder
-	Title.Active = true
-	Title.BackgroundColor3 = Color3.fromRGB(36,36,37)
-	Title.BorderSizePixel = 0
-	Title.Size = UDim2.new(0, 250, 0, 20)
-	Title.Font = Enum.Font.SourceSans
-	Title.TextSize = 18
-	Title.TextColor3 = Color3.new(1,1,1)
-	Title.ZIndex = 10
+    -- Title bar
+    self.Title = create("TextLabel", {
+        Parent = self.Frame,
+        BackgroundColor3 = Color3.fromRGB(36, 36, 37),
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 20),
+        Font = Enum.Font.SourceSans,
+        TextSize = 18,
+        TextColor3 = Color3.new(1,1,1),
+        Text = title or "Infinite Yield",
+        ZIndex = 10,
+    })
 
-	Title.Text = "Infinite Yield FE v"..self.Version
+    -- Command bar
+    self.Cmdbar = create("TextBox", {
+        Parent = self.Frame,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 5, 0, 20),
+        Size = UDim2.new(1, -10, 0, 25),
+        Font = Enum.Font.SourceSans,
+        TextSize = 18,
+        TextColor3 = Color3.new(1, 1, 1),
+        PlaceholderText = "Command Bar",
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 10,
+    })
 
-	local Dark = Instance.new("Frame")
-	Dark.Name = "Dark"
-	Dark.Parent = self.Holder
-	Dark.Active = true
-	Dark.BackgroundColor3 = Color3.fromRGB(36, 36, 37)
-	Dark.BorderSizePixel = 0
-	Dark.Position = UDim2.new(0, 0, 0, 45)
-	Dark.Size = UDim2.new(0, 250, 0, 175)
-	Dark.ZIndex = 10
+    -- Command list container (scrolling)
+    self.CmdList = create("ScrollingFrame", {
+        Parent = self.Frame,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 5, 0, 45),
+        Size = UDim2.new(1, -10, 0, 175),
+        ScrollBarThickness = 8,
+        VerticalScrollBarInset = Enum.ScrollBarInset.Always,
+        ZIndex = 10,
+    })
 
-	local Cmdbar = Instance.new("TextBox")
-	Cmdbar.Name = "Cmdbar"
-	Cmdbar.Parent = self.Holder
-	Cmdbar.BackgroundTransparency = 1
-	Cmdbar.BorderSizePixel = 0
-	Cmdbar.Position = UDim2.new(0, 5, 0, 20)
-	Cmdbar.Size = UDim2.new(0, 240, 0, 25)
-	Cmdbar.Font = Enum.Font.SourceSans
-	Cmdbar.TextSize = 18
-	Cmdbar.TextXAlignment = Enum.TextXAlignment.Left
-	Cmdbar.TextColor3 = Color3.new(1, 1, 1)
-	Cmdbar.PlaceholderText = "Command Bar"
-	Cmdbar.ZIndex = 10
-	self.Cmdbar = Cmdbar
+    -- List layout for commands
+    self.CmdListLayout = create("UIListLayout", {
+        Parent = self.CmdList,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 4),
+    })
 
-	local CMDsF = Instance.new("ScrollingFrame")
-	CMDsF.Name = "CMDs"
-	CMDsF.Parent = self.Holder
-	CMDsF.BackgroundTransparency = 1
-	CMDsF.BorderSizePixel = 0
-	CMDsF.Position = UDim2.new(0, 5, 0, 45)
-	CMDsF.Size = UDim2.new(0, 245, 0, 175)
-	CMDsF.ScrollBarImageColor3 = Color3.fromRGB(78,78,79)
-	CMDsF.ScrollBarThickness = 8
-	CMDsF.VerticalScrollBarInset = Enum.ScrollBarInset.Always
-	CMDsF.ZIndex = 10
-	self.CMDsF = CMDsF
+    self.Commands = {}
+    self.CommandLabels = {}
 
-	local cmdListLayout = Instance.new("UIListLayout")
-	cmdListLayout.Parent = CMDsF
-	cmdListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	cmdListLayout.Padding = UDim.new(0, 4)
-	self.CmdListLayout = cmdListLayout
+    -- Setup command bar enter key
+    self.Cmdbar.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local text = self.Cmdbar.Text:match("^%s*(.-)%s*$")
+            if text ~= "" then
+                self:RunCommand(text)
+            end
+            self.Cmdbar.Text = ""
+        end
+    end)
 
-	self.CommandLabels = {}
+    -- Dragging window support
+    local dragging, dragInput, dragStart, startPos
+    self.Title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = self.Frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
 
-	local SettingsButton = Instance.new("ImageButton")
-	SettingsButton.Name = "SettingsButton"
-	SettingsButton.Parent = self.Holder
-	SettingsButton.BackgroundTransparency = 1
-	SettingsButton.Position = UDim2.new(0, 230, 0, 0)
-	SettingsButton.Size = UDim2.new(0, 20, 0, 20)
-	SettingsButton.Image = getcustomasset("rbxassetid://3926305904") -- settings gear icon
-	SettingsButton.ZIndex = 10
-	self.SettingsButton = SettingsButton
+    self.Title.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
 
-	local Settings = Instance.new("Frame")
-	Settings.Name = "Settings"
-	Settings.Parent = self.Holder
-	Settings.Active = true
-	Settings.BackgroundColor3 = Color3.fromRGB(36, 36, 37)
-	Settings.BorderSizePixel = 0
-	Settings.Position = UDim2.new(0, 0, 0, 220)
-	Settings.Size = UDim2.new(0, 250, 0, 175)
-	Settings.ZIndex = 10
-	Settings.Visible = false
-	self.Settings = Settings
+    RunService.RenderStepped:Connect(function()
+        if dragging and dragInput then
+            local delta = dragInput.Position - dragStart
+            self.Frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
 
-	local SettingsHolder = Instance.new("ScrollingFrame")
-	SettingsHolder.Name = "Holder"
-	SettingsHolder.Parent = Settings
-	SettingsHolder.BackgroundTransparency = 1
-	SettingsHolder.BorderSizePixel = 0
-	SettingsHolder.Size = UDim2.new(1,0,1,0)
-	SettingsHolder.ScrollBarImageColor3 = Color3.fromRGB(78,78,79)
-	SettingsHolder.CanvasSize = UDim2.new(0, 0, 0, 235)
-	SettingsHolder.ScrollBarThickness = 8
-	SettingsHolder.VerticalScrollBarInset = Enum.ScrollBarInset.Always
-	SettingsHolder.ZIndex = 10
-	self.SettingsHolder = SettingsHolder
-
-	local StayOpen = Instance.new("TextLabel")
-	StayOpen.Name = "StayOpen"
-	StayOpen.Parent = SettingsHolder
-	StayOpen.BackgroundTransparency = 1
-	StayOpen.Position = UDim2.new(0, 5, 0, 30)
-	StayOpen.Size = UDim2.new(1, -10, 0, 20)
-	StayOpen.Font = Enum.Font.SourceSans
-	StayOpen.TextSize = 14
-	StayOpen.Text = "Keep Menu Open"
-	StayOpen.TextColor3 = Color3.new(1, 1, 1)
-	StayOpen.TextXAlignment = Enum.TextXAlignment.Left
-	StayOpen.ZIndex = 10
-	self.StayOpenLabel = StayOpen
-
-	local Button = Instance.new("Frame")
-	Button.Name = "Button"
-	Button.Parent = StayOpen
-	Button.BackgroundColor3 = Color3.fromRGB(78, 78, 79)
-	Button.BorderSizePixel = 0
-	Button.Position = UDim2.new(1, -20, 0, 0)
-	Button.Size = UDim2.new(0, 20, 0, 20)
-	Button.ZIndex = 10
-	self.KeepOpenButton = Button
-
-	local On = Instance.new("Frame")
-	On.Name = "On"
-	On.Parent = Button
-	On.BackgroundColor3 = Color3.fromRGB(150, 150, 151)
-	On.BackgroundTransparency = 1
-	On.BorderSizePixel = 0
-	On.Position = UDim2.new(0, 2, 0, 2)
-	On.Size = UDim2.new(0, 16, 0, 16)
-	On.ZIndex = 10
-	self.KeepOpenToggle = On
+    return self
 end
 
-function Library:SetupEvents()
-	local dragging, dragInput, dragStart, startPos
-	local Title = self.Holder:FindFirstChild("Title")
-
-	Title.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			dragStart = input.Position
-			startPos = self.Holder.Position
-			self.LastInput = tick()
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
-	end)
-
-	Title.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement then
-			dragInput = input
-		end
-	end)
-
-	RunService.RenderStepped:Connect(function()
-		if dragging and dragInput then
-			local delta = dragInput.Position - dragStart
-			self.Holder.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
-		end
-	end)
-
-	self.SettingsButton.MouseButton1Click:Connect(function()
-		self.Settings.Visible = not self.Settings.Visible
-		self.LastInput = tick()
-	end)
-
-	self.KeepOpenButton.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			self.KeepOpen = not self.KeepOpen
-			self.LastInput = tick()
-			self.KeepOpenToggle.BackgroundTransparency = self.KeepOpen and 0 or 1
-		end
-	end)
-
-	self.Cmdbar.FocusLost:Connect(function(enterPressed)
-		if enterPressed then
-			local cmdText = self.Cmdbar.Text:match("^%s*(.-)%s*$")
-			if cmdText ~= "" then
-				self:RunCommand(cmdText)
-			end
-			self.Cmdbar.Text = ""
-			self.LastInput = tick()
-		end
-	end)
-
-	UserInputService.InputBegan:Connect(function()
-		self.LastInput = tick()
-	end)
-end
-
-function Library:StartAutoMinimize()
-	spawn(function()
-		while true do
-			task.wait(1)
-			if not self.KeepOpen and tick() - self.LastInput > 10 then
-				if not self.Minimized then
-					self.Minimized = true
-					self.Holder.Size = UDim2.new(0, 250, 0, 50)
-					self.CMDsF.Visible = false
-					self.Cmdbar.Visible = false
-					self.Settings.Visible = false
-				end
-			else
-				if self.Minimized then
-					self.Minimized = false
-					self.Holder.Size = UDim2.new(0, 250, 0, 400)
-					self.CMDsF.Visible = true
-					self.Cmdbar.Visible = true
-				end
-			end
-		end
-	end)
-end
-
-function Library:SetCommands(commands)
-	self.Commands = commands or {}
-
-	for _, lbl in pairs(self.CommandLabels) do
-		lbl:Destroy()
-	end
-	self.CommandLabels = {}
-
-	for i, cmd in ipairs(self.Commands) do
-		local label = Instance.new("TextLabel")
-		label.Name = "CmdLabel_" .. cmd.Name
-		label.Parent = self.CMDsF
-		label.BackgroundTransparency = 1
-		label.Size = UDim2.new(1, -10, 0, 22)
-		label.Font = Enum.Font.SourceSans
-		label.TextSize = 18
-		label.TextColor3 = Color3.new(1,1,1)
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.ZIndex = 10
-		label.Text = cmd.Name .. (cmd.Args and (" " .. cmd.Args) or "")
-		table.insert(self.CommandLabels, label)
-	end
-
-	task.spawn(function()
-		task.wait(0.1)
-		local totalHeight = 0
-		for _, lbl in pairs(self.CommandLabels) do
-			totalHeight = totalHeight + lbl.AbsoluteSize.Y + 4
-		end
-		self.CMDsF.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
-	end)
+function Library:CreateWindow(...)
+    error("Use Library.new():CreateWindow() instead")
 end
 
 function Library:RunCommand(text)
-	local args = {}
-	for word in text:gmatch("%S+") do
-		table.insert(args, word)
-	end
-	local cmdName = args[1] and args[1]:lower()
-	if not cmdName then return end
+    local args = {}
+    for word in text:gmatch("%S+") do
+        table.insert(args, word)
+    end
+    local cmdName = args[1] and args[1]:lower()
+    if not cmdName then return end
 
-	local cmdData
-	for _, cmd in ipairs(self.Commands) do
-		if cmd.Name:lower() == cmdName then
-			cmdData = cmd
-			break
-		end
-	end
+    local cmdData
+    for _, cmd in pairs(self.Commands or {}) do
+        if cmd.Name:lower() == cmdName then
+            cmdData = cmd
+            break
+        end
+    end
 
-	if cmdData and cmdData.Callback then
-		local passedArgs = {}
-		for i = 2, #args do
-			table.insert(passedArgs, args[i])
-		end
-		local success, err = pcall(function()
-			cmdData.Callback(unpack(passedArgs))
-		end)
-		if not success then
-			warn("[InfiniteYield] Command error: ".. tostring(err))
-		end
-	else
-		warn("[InfiniteYield] Unknown command: ".. tostring(cmdName))
-	end
+    if cmdData and cmdData.Callback then
+        local params = {}
+        for i = 2, #args do
+            params[#params + 1] = args[i]
+        end
+        local success, err = pcall(function()
+            cmdData.Callback(unpack(params))
+        end)
+        if not success then
+            warn("[InfiniteYield] Command error: " .. tostring(err))
+        end
+    else
+        warn("[InfiniteYield] Unknown command: " .. tostring(cmdName))
+    end
 end
 
--- === Usage example ===
+function Library:CreateCommand(name, args, callback)
+    error("Use Window:CreateCommand() on the window instance, not Library:CreateCommand()")
+end
 
-local UI = Library.new("5.0.0")
+-- Window methods
+local WindowMethods = {}
 
-UI:SetCommands({
-	{
-		Name = "print",
-		Args = "[text]",
-		Callback = function(...)
-			print(table.concat({...}, " "))
-		end
-	},
-	{
-		Name = "speed",
-		Args = "[num]",
-		Callback = function(speed)
-			local plr = game.Players.LocalPlayer
-			if plr.Character and plr.Character:FindFirstChild("Humanoid") then
-				plr.Character.Humanoid.WalkSpeed = tonumber(speed) or 16
-			end
-		end
-	},
-	{
-		Name = "unspeed",
-		Callback = function()
-			local plr = game.Players.LocalPlayer
-			if plr.Character and plr.Character:FindFirstChild("Humanoid") then
-				plr.Character.Humanoid.WalkSpeed = 16
-			end
-		end
-	},
-	{
-		Name = "reset",
-		Callback = function()
-			local plr = game.Players.LocalPlayer
-			if plr.Character then
-				plr.Character:BreakJoints()
-			end
-		end
-	}
+function WindowMethods:CreateCommand(name, args, callback)
+    local cmd = {
+        Name = name,
+        Args = args,
+        Callback = callback,
+    }
+    table.insert(self.Commands, cmd)
+
+    -- Create label
+    local label = Instance.new("TextLabel")
+    label.Name = "CmdLabel_"..name
+    label.Parent = self.CmdList
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1, -10, 0, 22)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 18
+    label.TextColor3 = Color3.new(1,1,1)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 10
+    label.Text = name .. (args and (" "..args) or "")
+    table.insert(self.CommandLabels, label)
+    return cmd
+end
+
+-- Hook Window methods
+Library.__index = function(tbl, key)
+    if key == "CreateWindow" then
+        return function(...)
+            return Library.CreateWindow(Library, ...)
+        end
+    end
+    if rawget(tbl, key) then
+        return rawget(tbl, key)
+    end
+    if tbl == Library then
+        return Library[key]
+    end
+end
+
+-- Bind Window methods on window instances
+local mt = {
+    __index = function(self, k)
+        return WindowMethods[k] or rawget(self, k)
+    end
+}
+
+-- Patch Window object returned from CreateWindow
+local oldCreateWindow = Library.CreateWindow
+Library.CreateWindow = function(self, title)
+    local win = oldCreateWindow(self, title)
+    return setmetatable(win, mt)
+end
+
+return setmetatable(Library, {
+    __call = function(_, ...)
+        return Library.new(...)
+    end
 })
